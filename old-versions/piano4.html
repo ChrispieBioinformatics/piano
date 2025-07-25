@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Extended Web Piano (C2 to C5)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 30px;
+        }
+        .piano-container {
+            position: relative;
+            height: 220px;
+            margin-bottom: 30px;
+            overflow-x: auto;
+            width: 100%;
+        }
+        .piano {
+            display: flex;
+            position: relative;
+            height: 200px;
+            min-width: max-content;
+        }
+        .key {
+            width: 60px;
+            height: 200px;
+            border: 1px solid #000;
+            background: white;
+            margin: 1px;
+            position: relative;
+            text-align: center;
+            line-height: 180px;
+            cursor: pointer;
+            user-select: none;
+            z-index: 1;
+        }
+        .key.black {
+            width: 40px;
+            height: 120px;
+            background: black;
+            color: white;
+            position: absolute;
+            top: 0;
+            z-index: 2;
+        }
+        .key span {
+            font-size: 14px;
+            display: block;
+        }
+        .controls {
+            text-align: center;
+            max-width: 600px;
+        }
+        textarea {
+            width: 100%;
+            height: 60px;
+            font-size: 16px;
+            margin-bottom: 10px;
+            resize: none;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="piano-container">
+        <div class="piano" id="piano"></div>
+    </div>
+
+    <div class="controls">
+        <textarea id="noteInput" placeholder="Enter notes like: C3 D#3 F4 A4 C5"></textarea><br>
+        <button onclick="playNoteSequence()">Play Sequence</button>
+    </div>
+
+    <script>
+        const context = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Generate notes from C2 to C5
+        const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const notes = [];
+        for (let octave = 2; octave <= 5; octave++) {
+            for (let i = 0; i < noteNames.length; i++) {
+                if (octave === 5 && noteNames[i] !== "C") continue; // Only C5
+                const note = noteNames[i] + octave;
+                const freq = 440 * Math.pow(2, (getSemitoneDistance(note) - getSemitoneDistance("A4")) / 12);
+                notes.push({ note, freq });
+            }
+        }
+
+        function getSemitoneDistance(note) {
+            const name = note.slice(0, -1);
+            const octave = parseInt(note.slice(-1));
+            const semitoneMap = { "C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5, "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11 };
+            return (octave * 12) + semitoneMap[name];
+        }
+
+        const noteMap = {};
+        notes.forEach(n => noteMap[n.note.toUpperCase()] = n.freq);
+
+        const whiteNoteOrder = ["C", "D", "E", "F", "G", "A", "B"];
+        const blackNoteMap = {
+            "C": "C#",
+            "D": "D#",
+            "F": "F#",
+            "G": "G#",
+            "A": "A#"
+        };
+
+        const piano = document.getElementById('piano');
+        let whiteKeyIndex = 0;
+
+        notes.forEach((n, i) => {
+            const name = n.note.slice(0, -1);
+            const octave = n.note.slice(-1);
+            const isBlack = name.includes("#");
+
+            if (!isBlack) {
+                const key = document.createElement('div');
+                key.className = 'key white';
+                key.innerHTML = `<span>${n.note}</span>`;
+                key.onclick = () => playNote(n.freq);
+                piano.appendChild(key);
+                whiteKeyIndex++;
+            } else {
+                // Find approximate left position for black key
+                const previousWhiteIndex = whiteKeyIndex - 1;
+                const leftOffset = previousWhiteIndex * 62 + 45;
+                const key = document.createElement('div');
+                key.className = 'key black';
+                key.innerHTML = `<span>${n.note}</span>`;
+                key.style.left = `${leftOffset}px`;
+                key.onclick = () => playNote(n.freq);
+                piano.appendChild(key);
+            }
+        });
+
+        function playNote(freq, duration = 1) {
+            const osc = context.createOscillator();
+            const gain = context.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+
+            osc.connect(gain);
+            gain.connect(context.destination);
+
+            osc.start();
+            gain.gain.setValueAtTime(1, context.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + duration);
+            osc.stop(context.currentTime + duration);
+        }
+
+        function playNoteSequence() {
+            const input = document.getElementById('noteInput').value;
+            const tokens = input.toUpperCase().split(/\s+/).filter(Boolean);
+
+            let delay = 0;
+            const duration = 0.6;
+
+            tokens.forEach(note => {
+                const freq = noteMap[note];
+                if (freq) {
+                    setTimeout(() => playNote(freq, duration), delay * 1000);
+                    delay += duration;
+                }
+            });
+        }
+    </script>
+</body>
+</html>

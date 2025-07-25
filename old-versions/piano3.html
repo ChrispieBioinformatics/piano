@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Web Piano with Sequence Playback</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 30px;
+        }
+        .piano-container {
+            position: relative;
+            height: 220px;
+            margin-bottom: 30px;
+        }
+        .piano {
+            display: flex;
+            position: relative;
+        }
+        .key {
+            width: 60px;
+            height: 200px;
+            border: 1px solid #000;
+            background: white;
+            margin: 1px;
+            position: relative;
+            text-align: center;
+            line-height: 180px;
+            cursor: pointer;
+            user-select: none;
+            z-index: 1;
+        }
+        .key.black {
+            width: 40px;
+            height: 120px;
+            background: black;
+            color: white;
+            position: absolute;
+            top: 0;
+            z-index: 2;
+        }
+        .key span {
+            font-size: 14px;
+            display: block;
+        }
+        .controls {
+            text-align: center;
+            max-width: 500px;
+        }
+        textarea {
+            width: 100%;
+            height: 60px;
+            font-size: 16px;
+            margin-bottom: 10px;
+            resize: none;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="piano-container">
+        <div class="piano" id="piano"></div>
+    </div>
+
+    <div class="controls">
+        <textarea id="noteInput" placeholder="Enter notes like: C4 D4 E4 F#4 G4"></textarea><br>
+        <button onclick="playNoteSequence()">Play Sequence</button>
+    </div>
+
+    <script>
+        const context = new (window.AudioContext || window.webkitAudioContext)();
+
+        const notes = [
+            { note: "C4", freq: 261.63 },
+            { note: "C#4", freq: 277.18 },
+            { note: "D4", freq: 293.66 },
+            { note: "D#4", freq: 311.13 },
+            { note: "E4", freq: 329.63 },
+            { note: "F4", freq: 349.23 },
+            { note: "F#4", freq: 369.99 },
+            { note: "G4", freq: 392.00 },
+            { note: "G#4", freq: 415.30 },
+            { note: "A4", freq: 440.00 },
+            { note: "A#4", freq: 466.16 },
+            { note: "B4", freq: 493.88 },
+        ];
+
+        const noteMap = {};
+        notes.forEach(n => noteMap[n.note.toUpperCase()] = n.freq);
+
+        const whiteNotes = notes.filter(n => !n.note.includes('#'));
+        const blackNotes = notes.filter(n => n.note.includes('#'));
+
+        const piano = document.getElementById('piano');
+
+        // Draw white keys
+        whiteNotes.forEach((n, i) => {
+            const key = document.createElement('div');
+            key.className = 'key white';
+            key.innerHTML = `<span>${n.note}</span>`;
+            key.onclick = () => playNote(n.freq);
+            piano.appendChild(key);
+        });
+
+        // Draw black keys
+        blackNotes.forEach((n) => {
+            const offsetMap = {
+                "C#4": 0.75,
+                "D#4": 1.75,
+                "F#4": 3.75,
+                "G#4": 4.75,
+                "A#4": 5.75,
+            };
+            const key = document.createElement('div');
+            key.className = 'key black';
+            key.innerHTML = `<span>${n.note}</span>`;
+            key.style.left = `${offsetMap[n.note] * 61}px`; // adjust spacing
+            key.onclick = () => playNote(n.freq);
+            piano.appendChild(key);
+        });
+
+        function playNote(freq, duration = 1) {
+            const osc = context.createOscillator();
+            const gain = context.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+
+            osc.connect(gain);
+            gain.connect(context.destination);
+
+            osc.start();
+            gain.gain.setValueAtTime(1, context.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + duration);
+            osc.stop(context.currentTime + duration);
+        }
+
+        function playNoteSequence() {
+            const input = document.getElementById('noteInput').value;
+            const tokens = input.toUpperCase().split(/\s+/).filter(Boolean);
+
+            let delay = 0;
+            const duration = 0.6; // seconds per note
+
+            tokens.forEach(note => {
+                const freq = noteMap[note];
+                if (freq) {
+                    setTimeout(() => playNote(freq, duration), delay * 1000);
+                    delay += duration;
+                }
+            });
+        }
+    </script>
+</body>
+</html>

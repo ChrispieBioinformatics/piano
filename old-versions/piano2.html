@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Web Piano with Sequence Playback</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 50px;
+        }
+        .piano {
+            display: flex;
+            position: relative;
+        }
+        .key {
+            width: 60px;
+            height: 200px;
+            border: 1px solid #000;
+            background: white;
+            margin: 1px;
+            position: relative;
+            text-align: center;
+            line-height: 180px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .key.black {
+            width: 40px;
+            height: 120px;
+            background: black;
+            color: white;
+            position: absolute;
+            top: 0;
+            z-index: 2;
+        }
+        .key span {
+            font-size: 14px;
+            display: block;
+        }
+        .controls {
+            margin-top: 30px;
+            text-align: center;
+        }
+        textarea {
+            width: 400px;
+            height: 60px;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="piano" id="piano"></div>
+
+    <div class="controls">
+        <textarea id="noteInput" placeholder="Enter notes like: C4 D4 E4 F#4 G4"></textarea><br>
+        <butt

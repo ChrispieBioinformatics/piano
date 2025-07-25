@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Web Piano (C1 to C6)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 30px;
+        }
+        .piano-container {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .piano {
+            display: flex;
+            position: relative;
+            height: 15em; /* relative height */
+            min-width: max-content;
+        }
+
+        .key {
+            width: 2.5em;
+            height: 80%;
+            margin: 0.05em;
+            border: 1px solid #000;
+            background: white;
+            position: relative;
+            text-align: center;
+            line-height: 12em;
+            font-size: 0.9em;
+            cursor: pointer;
+            user-select: none;
+            z-index: 1;
+        }
+
+        .key.black {
+            width: 2.5em;
+            height: 60%;
+            background: black;
+            color: white;
+            position: absolute;
+            top: 0;
+            z-index: 2;
+            font-size: 0.8em;
+        }
+
+        .controls {
+            text-align: center;
+            max-width: 700px;
+        }
+        textarea {
+            width: 100%;
+            height: 80px;
+            font-size: 16px;
+            margin-bottom: 10px;
+            resize: none;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+
+</head>
+<body>
+    
+      <div class="piano-container">
+        <div class="piano" id="piano"></div>
+      </div>
+    
+
+    <div class="controls">
+        <textarea id="noteInput" placeholder="Enter notes like: C3:0.5 D#3:1 E4:0.75"></textarea><br>
+        <button onclick="playNoteSequence()">Play Sequence</button>
+    </div>
+
+    <script>
+        let context = null;
+
+        // Generate notes from C1 to C6
+        const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const notes = [];
+        for (let octave = 1; octave <= 6; octave++) {
+            for (let i = 0; i < noteNames.length; i++) {
+                if (octave === 6 && noteNames[i] !== "C") continue; // Only C6
+                const note = noteNames[i] + octave;
+                const freq = 440 * Math.pow(2, (getSemitoneDistance(note) - getSemitoneDistance("A4")) / 12);
+                notes.push({ note, freq });
+            }
+        }
+
+        function getSemitoneDistance(note) {
+            const name = note.slice(0, -1);
+            const octave = parseInt(note.slice(-1));
+            const semitoneMap = { "C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5, "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11 };
+            return (octave * 12) + semitoneMap[name];
+        }
+
+        const noteMap = {};
+        notes.forEach(n => noteMap[n.note.toUpperCase()] = n.freq);
+
+        const piano = document.getElementById('piano');
+
+        const whiteKeyElements = [];
+        notes.forEach(note => {
+            const name = note.note.slice(0, -1);
+            const isBlack = name.includes("#");
+            if (!isBlack) {
+                const key = document.createElement('div');
+                key.className = 'key white';
+                key.innerHTML = `<span>${note.note}</span>`;
+                key.onclick = () => playNote(note.freq);
+                piano.appendChild(key);
+                whiteKeyElements.push({ note: note.note, element: key });
+            }
+        });
+
+        notes.forEach(note => {
+            const name = note.note.slice(0, -1);
+            const isBlack = name.includes("#");
+            if (isBlack) {
+                const prevWhiteName = getLeftWhite(note.note);
+                const target = whiteKeyElements.find(w => w.note === prevWhiteName);
+                if (target) {
+                    const key = document.createElement('div');
+                    key.className = 'key black';
+                    key.innerHTML = `<span>${note.note}</span>`;
+                    key.onclick = () => playNote(note.freq);
+
+                    // Align over the left white key
+                    //const offset = target.element.offsetLeft + 30; // Centered (adjust for width)
+                    //key.style.left = `${offset}px`;
+
+                    // Example update: remove pixel values, use offsetLeft instead
+                    const offset = target.element.offsetLeft + target.element.offsetWidth * 0.65;
+                    key.style.left = `${offset}px`; // Keep this in px since offsetLeft is px
+
+
+                    piano.appendChild(key);
+                }
+            }
+        });
+
+        function getLeftWhite(blackNote) {
+            const map = {
+                "C#": "C", "D#": "D",
+                "F#": "F", "G#": "G", "A#": "A"
+            };
+            const name = blackNote.slice(0, -2);
+            const octave = blackNote.slice(-1);
+            return map[name + "#"] + octave;
+        }
+
+        function ensureContext() {
+            if (!context) {
+                context = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (context.state === 'suspended') {
+                context.resume();
+            }
+        }
+
+
+        function playNote(freq, duration = 1) {
+            ensureContext();
+
+            const osc = context.createOscillator();
+            const gain = context.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+
+            osc.connect(gain);
+            gain.connect(context.destination);
+
+            osc.start();
+            gain.gain.setValueAtTime(1, context.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + duration);
+            osc.stop(context.currentTime + duration);
+        }
+
+
+        function playNoteSequence() {
+            const input = document.getElementById('noteInput').value.trim();
+            const tokens = input.split(/\s+/);
+            let delay = 0;
+
+            tokens.forEach(token => {
+                const parts = token.toUpperCase().split(":");
+                const note = parts[0];
+                const duration = parseFloat(parts[1]) || 0.5;
+
+                const freq = noteMap[note];
+                if (freq) {
+                    setTimeout(() => playNote(freq, duration), delay * 1000);
+                    delay += duration;
+                }
+            });
+        }
+    </script>
+</body>
+</html>
