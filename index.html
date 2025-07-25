@@ -87,19 +87,46 @@
     <script type="text/javascript">
         const activeAudio = [];
         const activeTimeouts = [];
+        let PLAYBACK_SPEED = 1;
 
     </script>
 
 </head>
 <body>
 
+    <div class="container my-4">
+      <div class="card shadow-sm p-4">
+
         <div class="mb-3">
-          <label for="volumeControl" class="form-label">Volume</label>
+          <label for="speedControl" class="form-label">⏱ Speed (Playback Rate, not live: applied on play)</label>
+          <input type="range" id="speedControl" class="form-range" min="0.25" max="2" step="0.05" value="1.0">
+          <div class="form-text" id="speedValue">1.0×</div>
+        </div>
+
+        <div class="mb-3">
+          <label for="volumeControl" class="form-label">🎚 Volume</label>
           <input type="range" id="volumeControl" class="form-range" min="0" max="1" step="0.01" value="1">
         </div>
-        <button onclick="stopAll()" class="btn btn-secondary w-100 mt-2">⏹ Stop</button>
-        <button onclick="saveSequence()" class="btn btn-secondary w-100 mt-2">⏹ Save</button>
-        <button onclick="loadSequence()" class="btn btn-secondary w-100 mt-2">⏹ Load</button>
+
+        <div class="row g-2 mb-2">
+          <div class="col-md-4">
+            <button onclick="stopAll()" class="btn btn-outline-danger w-100">
+              ⏹ Stop
+            </button>
+          </div>
+          <div class="col-md-4">
+            <button onclick="saveSequence()" class="btn btn-outline-success w-100">
+              💾 Save
+            </button>
+          </div>
+          <div class="col-md-4">
+            <button onclick="loadSequence()" class="btn btn-outline-primary w-100">
+              📂 Load
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
       <div class="piano-container">
         <div class="piano" id="piano"></div>
@@ -142,6 +169,11 @@ F4:0.5 F4:0.5 E4:0.5 E4:0.5 D4:0.5 D4:0.5 C4:1
 
 
     <script>
+
+        document.getElementById("speedControl").addEventListener("input", (e) => {
+          PLAYBACK_SPEED = parseFloat(e.target.value);
+          document.getElementById("speedValue").textContent = `${PLAYBACK_SPEED.toFixed(2)}×`;
+        });
 
         const sharpToFlat = {
             "C#": "Db",
@@ -300,13 +332,15 @@ F4:0.5 F4:0.5 E4:0.5 E4:0.5 D4:0.5 D4:0.5 C4:1
                 const duration = parseFloat(parts[1]) || 0.5;
                 const freq = noteMap[note];
                 if (freq) {
+delay += duration / PLAYBACK_SPEED;
+
                     const timeoutId = setTimeout(() => {
                         playNote(freq, duration, note, highlightClass);
                     }, delay * 1000);
 
                     activeTimeouts.push(timeoutId);
 
-                    delay += duration;
+                    
                 }
             });
         }
