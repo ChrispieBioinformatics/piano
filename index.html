@@ -101,11 +101,6 @@
         <button onclick="saveSequence()" class="btn btn-secondary w-100 mt-2">⏹ Save</button>
         <button onclick="loadSequence()" class="btn btn-secondary w-100 mt-2">⏹ Load</button>
 
-
-
-
-
-    
       <div class="piano-container">
         <div class="piano" id="piano"></div>
       </div>
@@ -266,33 +261,32 @@ F4:0.5 F4:0.5 E4:0.5 E4:0.5 D4:0.5 D4:0.5 C4:1
         }
 
 
-        function playNote(freq, duration = 1, noteName = null, highlightClass = "highlight-left") {
-            ensureContext();
-
-            // Play sample if available
+        function playNote(_, duration = 1, noteName = null, highlightClass = "highlight-left") {
             if (noteName && sampleMap[noteName]) {
                 const audio = new Audio(sampleMap[noteName]);
                 audio.volume = parseFloat(document.getElementById("volumeControl")?.value || 1);
-                audio.currentTime = 0;
                 audio.play();
+                activeAudio.push(audio); // Track it
             }
 
-            // Highlight
             const key = document.querySelector(`[data-note="${noteName}"]`);
             if (key) {
                 const fullKey = noteName + ":" + highlightClass;
                 highlightCounters[fullKey] = (highlightCounters[fullKey] || 0) + 1;
                 key.classList.add(highlightClass);
 
-                setTimeout(() => {
+                const timeoutId = setTimeout(() => {
                     highlightCounters[fullKey] -= 1;
                     if (highlightCounters[fullKey] <= 0) {
                         key.classList.remove(highlightClass);
                         delete highlightCounters[fullKey];
                     }
                 }, duration * 1000);
+
+                activeTimeouts.push(timeoutId); // Track timeout
             }
         }
+
 
 
         function playNoteSequence(inputId, highlightClass) {
@@ -306,7 +300,12 @@ F4:0.5 F4:0.5 E4:0.5 E4:0.5 D4:0.5 D4:0.5 C4:1
                 const duration = parseFloat(parts[1]) || 0.5;
                 const freq = noteMap[note];
                 if (freq) {
-                    setTimeout(() => playNote(freq, duration, note, highlightClass), delay * 1000);
+                    const timeoutId = setTimeout(() => {
+                        playNote(freq, duration, note, highlightClass);
+                    }, delay * 1000);
+
+                    activeTimeouts.push(timeoutId);
+
                     delay += duration;
                 }
             });
@@ -327,13 +326,29 @@ F4:0.5 F4:0.5 E4:0.5 E4:0.5 D4:0.5 D4:0.5 C4:1
 
 
         function stopAll() {
-            document.querySelectorAll(".key").forEach(k => {
-                k.classList.remove("highlight-left", "highlight-right");
+            // Cancel all note scheduling
+            activeTimeouts.forEach(id => clearTimeout(id));
+            activeTimeouts.length = 0;
+
+            // Stop all audio
+            activeAudio.forEach(audio => {
+                audio.pause();
+                audio.currentTime = 0;
             });
+            activeAudio.length = 0;
+
+            // Reset highlight tracking
             for (let key in highlightCounters) {
                 highlightCounters[key] = 0;
             }
+
+            // Remove all visual highlights
+            document.querySelectorAll(".key").forEach(k => {
+                k.classList.remove("highlight-left", "highlight-right");
+            });
         }
+
+
 
         function saveSequence() {
             localStorage.setItem("leftHand", document.getElementById("leftInput").value);
